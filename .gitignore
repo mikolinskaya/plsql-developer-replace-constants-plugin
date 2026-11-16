@@ -1,0 +1,23 @@
+# Build output
+/build/
+/out/
+
+# IDE and local tools
+/.vs/
+/.tools/
+*.user
+*.suo
+*.VC.db
+*.VC.VC.opendb
+
+# C/C++ build artifacts
+*.obj
+*.lib
+*.exp
+*.dll
+*.exe
+*.pdb
+*.ilk
+
+# Local CMake settings
+CMakeUserPresets.json
