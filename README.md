@@ -1,0 +1,1 @@
+# plsql-developer-replace-constants-plugin
