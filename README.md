@@ -43,6 +43,54 @@ select 'ACTIVE' from dual;
 
 Qualified references are supported in PL/SQL blocks as well as SQL statements.
 
+### Synonym for a package in another schema
+
+Given a package owned by `another_app_user`:
+
+```sql
+create or replace package package_third is
+  c_status_inactive constant varchar2(10) := 'INACTIVE';
+  c_limit           constant number := 30;
+end;
+/
+
+grant execute on package_third to app_user;
+```
+
+and a synonym owned by `app_user`:
+
+```sql
+create or replace synonym package_synonym for another_app_user.package_third;
+```
+
+when connected as `app_user`, the plugin resolves the synonym to its target schema and package. For example, it transforms:
+
+```sql
+select package_synonym.c_limit from dual;
+
+begin
+  dbms_output.put_line(package_synonym.c_status_inactive);
+  dbms_output.put_line(package_synonym.c_limit);
+  dbms_output.put_line(another_app_user.package_third.c_limit);
+end;
+/
+```
+
+into:
+
+```sql
+select 30 from dual;
+
+begin
+  dbms_output.put_line('INACTIVE');
+  dbms_output.put_line(30);
+  dbms_output.put_line(30);
+end;
+/
+```
+
+References through the synonym and through the fully qualified target name can be used in the same window.
+
 ### Package in the same window
 
 If the package is declared in the same window, its prefix can be omitted in PL/SQL blocks and SQL statements. For example, given:
@@ -84,7 +132,7 @@ select *
 
 - Unquoted constant names are recognized case-insensitively.
 - Local constants and references in the `package.constant` and `schema.package.constant` forms are supported.
-- When connected, the plugin loads specifications and bodies of packages from the current and explicitly referenced schemas through `ALL_SOURCE`. Private and public synonyms are resolved through `ALL_SYNONYMS`, with a private synonym taking precedence over a public one.
+- When connected, the plugin loads specifications and bodies of packages from the current and explicitly referenced schemas through `ALL_SOURCE`. Private and public synonyms, including synonyms for packages in other schemas, are resolved through `ALL_SYNONYMS`, with a private synonym taking precedence over a public one.
 - Qualified references such as `package.constant` and `schema.package.constant` are resolved using the package specification only. Constants declared only in a package body are available through unqualified names.
 - Packages referenced by loaded specifications and bodies are loaded recursively. Unqualified names inside a package are resolved relative to its owner's schema. Duplicate loading and cycles are prevented, and resolution depth is limited to 32 levels.
 - If the processed code contains no package-qualified references, specifications of all packages in the current schema are loaded in one query so that unqualified constants can also be resolved outside package windows.

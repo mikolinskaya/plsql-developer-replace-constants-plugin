@@ -30,6 +30,13 @@ end;
 /
 )SQL";
 
+constexpr const char* packageThird = R"SQL(create or replace package package_third is
+  c_status_inactive constant varchar2(10) := 'INACTIVE';
+  c_limit           constant number := 30;
+end;
+/
+)SQL";
+
 using SqlRow = std::array<const char*, 5>;
 
 HWND editor = nullptr;
@@ -37,9 +44,11 @@ std::vector<SqlRow> sqlRows;
 std::size_t sqlRow = 0;
 int packageFirstLoads = 0;
 int packageSecondLoads = 0;
+int packageThirdLoads = 0;
 int packageSourceQueries = 0;
 bool synonymQuery = false;
 bool useSynonym = false;
+bool useCrossSchemaSynonym = false;
 
 BOOL __cdecl connected() {
     return TRUE;
@@ -90,10 +99,19 @@ int __cdecl sqlExecute(const char* queryValue) {
             ++packageSecondLoads;
             sqlRows.push_back({"TEST_SCHEMA", "PACKAGE_SECOND", "PACKAGE", packageSecond, nullptr});
         }
+        if (query.find("'PACKAGE_THIRD'") != std::string::npos &&
+            query.find("owner = 'ANOTHER_APP_USER'") != std::string::npos) {
+            ++packageThirdLoads;
+            sqlRows.push_back({"ANOTHER_APP_USER", "PACKAGE_THIRD", "PACKAGE", packageThird, nullptr});
+        }
     } else if (synonymQuery && useSynonym &&
                query.find("'PACKAGE_ALIAS'") != std::string::npos) {
         sqlRows.push_back({"TEST_SCHEMA", "PACKAGE_FIRST", nullptr,
                            "TEST_SCHEMA", "PACKAGE_ALIAS"});
+    } else if (synonymQuery && useCrossSchemaSynonym &&
+               query.find("'PACKAGE_SYNONYM'") != std::string::npos) {
+        sqlRows.push_back({"ANOTHER_APP_USER", "PACKAGE_THIRD", nullptr,
+                           "APP_USER", "PACKAGE_SYNONYM"});
     }
     return 0;
 }
@@ -170,7 +188,8 @@ void registerCallbacks() {
 
 bool expectReplacement(const char* testName, const std::string& input, const std::string& expected,
                        int expectedFirstLoads, int expectedSecondLoads, int expectedSourceQueries,
-                       bool withSynonym = false) {
+                       bool withSynonym = false, bool withCrossSchemaSynonym = false,
+                       int expectedThirdLoads = 0) {
     const HMODULE instance = GetModuleHandleA(nullptr);
     HWND parent = CreateWindowExA(0, "STATIC", "", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT,
                                   CW_USEDEFAULT, 800, 600, nullptr, nullptr, instance, nullptr);
@@ -188,8 +207,10 @@ bool expectReplacement(const char* testName, const std::string& input, const std
 
     packageFirstLoads = 0;
     packageSecondLoads = 0;
+    packageThirdLoads = 0;
     packageSourceQueries = 0;
     useSynonym = withSynonym;
+    useCrossSchemaSynonym = withCrossSchemaSynonym;
     SendMessageA(editor, EM_SETSEL, 0, -1);
     OnMenuClick(1);
     const std::string actual = windowText();
@@ -197,12 +218,14 @@ bool expectReplacement(const char* testName, const std::string& input, const std
     editor = nullptr;
 
     if (actual == expected && packageFirstLoads == expectedFirstLoads &&
-        packageSecondLoads == expectedSecondLoads && packageSourceQueries == expectedSourceQueries) {
+        packageSecondLoads == expectedSecondLoads && packageThirdLoads == expectedThirdLoads &&
+        packageSourceQueries == expectedSourceQueries) {
         return true;
     }
 
     std::cerr << testName << " FAILED\nPACKAGE_FIRST loads: " << packageFirstLoads
               << "\nPACKAGE_SECOND loads: " << packageSecondLoads
+              << "\nPACKAGE_THIRD loads: " << packageThirdLoads
               << "\nALL_SOURCE queries: " << packageSourceQueries
               << "\nOutput:\n" << actual;
     return false;
@@ -254,6 +277,81 @@ bool testSynonymOtherWindow() {
     return expectReplacement("synonym_other_window", input, expected, 1, 0, 2, true);
 }
 
+bool testCrossSchemaSynonymOtherWindow() {
+    const std::string input = R"SQL(select package_synonym.c_limit from dual; -- 30
+begin
+  dbms_output.put_line(package_synonym.c_status_inactive);
+  dbms_output.put_line(package_synonym.c_limit);
+end;
+)SQL";
+    const std::string expected = R"SQL(select 30 from dual; -- 30
+begin
+  dbms_output.put_line('INACTIVE');
+  dbms_output.put_line(30);
+end;
+)SQL";
+    return expectReplacement("cross_schema_synonym_other_window", input, expected, 0, 0, 2,
+                             false, true, 1);
+}
+
+bool testCrossSchemaSynonymAndQualifiedName() {
+    const std::string input = R"SQL(begin
+  dbms_output.put_line(package_synonym.c_status_inactive);
+  dbms_output.put_line(package_synonym.c_limit);
+  dbms_output.put_line(another_app_user.package_third.c_status_inactive);
+  dbms_output.put_line(another_app_user.package_third.c_limit);
+end;
+)SQL";
+    const std::string expected = R"SQL(begin
+  dbms_output.put_line('INACTIVE');
+  dbms_output.put_line(30);
+  dbms_output.put_line('INACTIVE');
+  dbms_output.put_line(30);
+end;
+)SQL";
+    return expectReplacement("cross_schema_synonym_and_qualified_name", input, expected, 0, 0, 2,
+                             false, true, 1);
+}
+
+bool testReportedCrossSchemaSynonymExample() {
+    const std::string input = R"SQL(select package_first.c_status from dual; -- ACTIVE
+select package_second.c_status from dual; -- ACTIVE
+select package_first.c_limit from dual; -- 100
+select package_second.c_another_limit from dual; -- 20
+select package_synonym.c_limit from dual; -- 30
+select another_app_user.package_third.c_limit from dual; -- 30
+begin
+  dbms_output.put_line(package_first.c_status);
+  dbms_output.put_line(package_second.c_status);
+  dbms_output.put_line(package_first.c_limit);
+  dbms_output.put_line(package_second.c_another_limit);
+  dbms_output.put_line(package_synonym.c_status_inactive);
+  dbms_output.put_line(package_synonym.c_limit);
+  dbms_output.put_line(another_app_user.package_third.c_status_inactive);
+  dbms_output.put_line(another_app_user.package_third.c_limit);
+end;
+)SQL";
+    const std::string expected = R"SQL(select 'ACTIVE' from dual; -- ACTIVE
+select 'ACTIVE' from dual; -- ACTIVE
+select 100 from dual; -- 100
+select 20 from dual; -- 20
+select 30 from dual; -- 30
+select 30 from dual; -- 30
+begin
+  dbms_output.put_line('ACTIVE');
+  dbms_output.put_line('ACTIVE');
+  dbms_output.put_line(100);
+  dbms_output.put_line(20);
+  dbms_output.put_line('INACTIVE');
+  dbms_output.put_line(30);
+  dbms_output.put_line('INACTIVE');
+  dbms_output.put_line(30);
+end;
+)SQL";
+    return expectReplacement("reported_cross_schema_synonym_example", input, expected, 1, 1, 2,
+                             false, true, 1);
+}
+
 } // namespace
 
 int main(int argc, char* argv[]) {
@@ -278,6 +376,15 @@ int main(int argc, char* argv[]) {
     }
     if (testName == "synonym_other_window") {
         return testSynonymOtherWindow() ? 0 : 1;
+    }
+    if (testName == "cross_schema_synonym_other_window") {
+        return testCrossSchemaSynonymOtherWindow() ? 0 : 1;
+    }
+    if (testName == "cross_schema_synonym_and_qualified_name") {
+        return testCrossSchemaSynonymAndQualifiedName() ? 0 : 1;
+    }
+    if (testName == "reported_cross_schema_synonym_example") {
+        return testReportedCrossSchemaSynonymExample() ? 0 : 1;
     }
 
     std::cerr << "Unknown test name: " << testName;

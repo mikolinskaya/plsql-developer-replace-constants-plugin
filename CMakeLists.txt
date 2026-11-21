@@ -67,6 +67,9 @@ foreach(test_case IN ITEMS
     package_first_only_other_window
     package_dependency_other_window
     synonym_other_window
+    cross_schema_synonym_other_window
+    cross_schema_synonym_and_qualified_name
+    reported_cross_schema_synonym_example
 )
     add_test(NAME plugin_${test_case} COMMAND plugin_integration_tests ${test_case})
 endforeach()
