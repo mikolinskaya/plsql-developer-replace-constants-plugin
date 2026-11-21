@@ -169,7 +169,7 @@ cmake --build build\x86 --config Release
 
 Готовый файл: `build\x86\Release\ReplaceConstants.dll`.
 
-Для PL/SQL Developer 16 и новее нужна 64-разрядная DLL. Для более ранних версий разрядность DLL должна совпадать с разрядностью PL/SQL Developer; плагин другой разрядности IDE проигнорирует.
+Разрядность DLL всегда должна совпадать с разрядностью PL/SQL Developer; плагин другой разрядности IDE проигнорирует. У IDE существуют 32- и 64-разрядные варианты, включая версии 16 и 17.
 
 ## Установка
 
@@ -183,7 +183,7 @@ cmake --build build\x86 --config Release
    Фактический путь может отличаться. Для установки в каталог `Program Files` могут потребоваться права администратора.
 3. Запустите PL/SQL Developer.
 4. Откройте **Tools → Configure Plug-Ins…** и убедитесь, что **Replace Constants** присутствует и включен.
-5. В меню **Edit** должен появиться пункт **Replace PL/SQL constants**.
+5. В PL/SQL Developer 11 и более ранних версиях команда находится в **Edit → Replace PL → SQL constants**. В версии 12 и новее используйте **Plug-Ins → Replace Constants → SQL constants**.
 
 Отдельный Oracle Client не требуется: обращения к базе выполняются через SQL API текущего экземпляра PL/SQL Developer.
 
@@ -191,7 +191,7 @@ cmake --build build\x86 --config Release
 
 1. Откройте PL/SQL-код в Program Window или другом редакторе PL/SQL Developer.
 2. Выделите SQL-запрос или его часть, в которой нужно заменить константы. Чтобы обработать всё окно, снимите выделение.
-3. Выберите **Edit → Replace PL/SQL constants**.
+3. В PL/SQL Developer 11 и более ранних версиях выберите **Edit → Replace PL → SQL constants**, а в версии 12 и новее — **Plug-Ins → Replace Constants → SQL constants**.
 4. Проверьте результат и выполните запрос. В строке состояния отображается число замен.
 5. При необходимости нажмите `Ctrl+Z`, чтобы вернуть исходный текст.
 
@@ -217,3 +217,4 @@ cmake --build build\x86 --config Release
 ## Лицензия
 
 Проект распространяется по [лицензии MIT](LICENSE).
+

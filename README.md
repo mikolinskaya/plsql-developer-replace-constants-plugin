@@ -171,7 +171,7 @@ cmake --build build\x86 --config Release
 
 Output file: `build\x86\Release\ReplaceConstants.dll`.
 
-PL/SQL Developer 16 and later require a 64-bit DLL. For earlier versions, the DLL architecture must match PL/SQL Developer; the IDE ignores plugins with a different architecture.
+The DLL architecture must always match PL/SQL Developer; the IDE ignores plugins with a different architecture. Both 32-bit and 64-bit variants of the IDE exist, including versions 16 and 17.
 
 ## Installation
 
@@ -185,7 +185,7 @@ PL/SQL Developer 16 and later require a 64-bit DLL. For earlier versions, the DL
    The actual path may differ. Administrator privileges may be required to install into `Program Files`.
 3. Start PL/SQL Developer.
 4. Open **Tools → Configure Plug-Ins…** and make sure **Replace Constants** is listed and enabled.
-5. The **Replace PL/SQL constants** command should appear in the **Edit** menu.
+5. In PL/SQL Developer 11 and earlier, the command is available under **Edit → Replace PL → SQL constants**. In version 12 and later, use **Plug-Ins → Replace Constants → SQL constants**.
 
 A separate Oracle Client is not required: database access uses the SQL API of the current PL/SQL Developer instance.
 
@@ -193,7 +193,7 @@ A separate Oracle Client is not required: database access uses the SQL API of th
 
 1. Open PL/SQL code in a Program Window or another PL/SQL Developer editor.
 2. Select the SQL query or fragment in which constants should be replaced. Clear the selection to process the entire window.
-3. Choose **Edit → Replace PL/SQL constants**.
+3. Choose **Edit → Replace PL → SQL constants** in PL/SQL Developer 11 and earlier, or **Plug-Ins → Replace Constants → SQL constants** in version 12 and later.
 4. Review the result and run the query. The status bar shows the number of replacements.
 5. If necessary, press `Ctrl+Z` to restore the original text.
 
